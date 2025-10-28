@@ -29,8 +29,15 @@ export default function CompassScreen({ navigation }) {
 
     const askForPermission = async () => {
       // TODO a) Ask for location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setSnack("Location permission denied");
+        return;
+      }
 
       // TODO b) Get One-time position and save the coordinates
+      const loc = await Location.getCurrentPositionAsync({});
+      if (mounted) setCoords(loc.coords);
 
       //* (GIVEN): Heading watcher (0..360 degrees)
       headingSub = await Location.watchHeadingAsync(({ trueHeading }) => {
@@ -97,6 +104,16 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(2): push new pin {id, lat, lon, heading, ts} to state and savePins(next)
+    const newPin = {
+      id: nowISO(),
+      lat: fmt(coords.latitude),
+      lon: fmt(coords.longitude),
+      heading: heading ?? 0,
+      ts: nowISO(),
+    };
+    const next = [newPin, ...pins];
+    setPins(next);
+    await savePins(next);
     setSnack("TODO: save pin");
   };
 
@@ -106,6 +123,9 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(3): Clipboard.setStringAsync("lat, lon") then snackbar
+    const coordStr = `${fmt(coords.latitude)}, ${fmt(coords.longitude)}`;
+    await Clipboard.setStringAsync(coordStr);
+    setSnack("Coordinates copied");
   };
 
   const shareCoords = async () => {
@@ -114,6 +134,12 @@ export default function CompassScreen({ navigation }) {
       return;
     }
     // TODO(4): Share.share with message including coords + heading + cardinal
+    const lat = fmt(coords.latitude);
+    const lon = fmt(coords.longitude);
+    const card = toCardinal(heading ?? 0);
+    const deg = Math.round(heading ?? 0);
+    const message = `I am here: ${lat}, ${lon} (${card}, ${deg}°)`;
+    await Share.share({ message });
   };
 
   // Make DARK end point opposite heading: add 180°
